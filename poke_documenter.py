@@ -1,114 +1,112 @@
 import streamlit as st
-import numpy as np
-import av
-import whisper
 import io
 import soundfile as sf
 import librosa
 from audiorecorder import audiorecorder
 
-# page config
-st.set_page_config(layout="wide")
+# Page Config & Styles
+st.set_page_config(page_title="Audio Card Notes", layout="wide", initial_sidebar_state="expanded")
 
-# cache Whisper model
+# Hide Streamlit default menu and footer & add basic card styling
+st.markdown(
+    """
+    <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        .stApp {padding: 2rem;}
+        .card-container {background: #f9f9f9; border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}    
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 @st.cache_resource
-def load_whisper():
+def load_model():
+    import whisper
     return whisper.load_model("base")
 
-model = load_whisper()
+model = load_model()
 
-# Initialize card list in session state
-def init_cards():
-    if 'cards' not in st.session_state:
-        st.session_state.cards = [0]
+# Initialise cards state
+if "cards" not in st.session_state:
+    st.session_state.cards = [0]
 
-# Add a new card after index idx
-def add_card(idx):
-    new_id = max(st.session_state.cards) + 1 if st.session_state.cards else 0
-    st.session_state.cards.insert(idx + 1, new_id)
+# Helper to insert a card id after current index
 
-# Render a single card given its unique ID
-def render_card(card_id):
-    with st.expander(f"Show Card Details", expanded=True):
-        col1, col2, col3 = st.columns(3)
+def add_card(idx: int):
+    next_id = max(st.session_state.cards, default=-1) + 1
+    st.session_state.cards.insert(idx + 1, next_id)
 
-        # Front Image
-        with col1:
-            st.subheader("Front Image")
-            front_file = st.file_uploader(
-                "Upload front image", type=["png", "jpg", "jpeg"], key=f"front_{card_id}"
-            )
-            if front_file:
-                st.image(front_file, caption="Front", use_column_width=True)
+# Card renderer
 
-        # Back Image
-        with col2:
-            st.subheader("Back Image")
-            back_file = st.file_uploader(
-                "Upload back image", type=["png", "jpg", "jpeg"], key=f"back_{card_id}"
-            )
-            if back_file:
-                st.image(back_file, caption="Back", use_column_width=True)
+def render_card(idx: int, card_id: int):
+    with st.container():
+        with st.expander(f"Details for Card {idx + 1}", expanded=True):
+            c1, c2, c3 = st.columns([1, 1, 1])
 
-        # Details (Voice → Text)
-        with col3:
-            st.subheader("Details (Voice → Text)")
+            # Image Uploaders + Camera Capture
+            for col, label in zip((c1, c2), ("Front", "Back")):
+                with col:
+                    st.markdown(f"**Upload {label} Image**")
+                    # for each card and each label (“Front”, “Back”)
+                    tabs = st.tabs(["Upload", "Camera"])
+                    with tabs[0]:
+                        upload = st.file_uploader(
+                            "",
+                            type=["png", "jpg", "jpeg"],
+                            key=f"upload_{label.lower()}_{card_id}",
+                        )
+                    with tabs[1]:
+                        camera = st.camera_input(
+                            f"Snap {label} Photo",
+                            key=f"camera_{label.lower()}_{card_id}",
+                        )
 
-            audio = audiorecorder(
-                start_prompt="Start recording",
-                stop_prompt="Stop recording",
-                pause_prompt="",
-                custom_style={'color': 'white'},
-                start_style={},
-                pause_style={},
-                stop_style={},
-                show_visualizer=True,
-                key=f"audio_{card_id}"
-            )
+                    # pick whichever the user provided
+                    image = upload if upload is not None else camera
+                    if image is not None:
+                        st.image(image, caption=label, use_column_width=True)
 
-            if len(audio) > 0:
-                # To play audio in frontend:
-                st.audio(audio.export().read())
+            # Audio recorder & transcription
+            with c3:
+                st.markdown("**Record & Transcribe**")
+                audio_data = audiorecorder(
+                    start_prompt="",
+                    stop_prompt="",
+                    pause_prompt="",
+                    show_visualizer=True,
+                    key=f"audio_{card_id}",
+                )
+                if audio_data:
+                    st.audio(audio_data.export().read(), format="audio/wav")
 
-            if st.button("📝 Transcribe", key=f"transcribe_{card_id}"):
-                if audio:
-                    audio_buffer = io.BytesIO(audio.export().read())
-                    data, samplerate = sf.read(audio_buffer)
+                if st.button("📝 Transcribe", key=f"trans_{card_id}"):
+                    if audio_data and len(audio_data) > 0:
+                        buf = io.BytesIO(audio_data.export().read())
+                        data, sr = sf.read(buf)
+                        if data.ndim > 1:
+                            data = data.mean(axis=1)
+                        audio = data.astype("float32")
+                        if sr != 16000:
+                            audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
+                        result = model.transcribe(audio, fp16=False)
+                        st.session_state[f"transcript_{card_id}"] = result["text"]
+                    else:
+                        st.warning("No audio recorded!")
 
-                    if data.ndim > 1:
-                        data = data.mean(axis=1)
-
-                    audio = data.astype("float32")
-
-                    if samplerate != 16000:
-                        audio = librosa.resample(audio, orig_sr=samplerate, target_sr=16000)
-
-                    result = model.transcribe(audio, fp16=False)
-                    st.session_state[f"transcript_{card_id}"] = result["text"]
-                else:
-                    st.warning("No audio to transcribe—please record first!")
-
-            note = st.text_area(
-                "Transcription",
-                st.session_state.get(f"transcript_{card_id}", ""),
-                height=180,
-                key=f"note_{card_id}",
-            )
-            if st.button("💾 Save Note", key=f"save_{card_id}"):
-                with open(f"saved_note_{card_id}.txt", "w") as f:
-                    f.write(note)
-                st.success("Your note has been saved!")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# Main function to render all cards
-if __name__ == "__main__":
-    init_cards()
-
-    for card_id in st.session_state.cards:
-        render_card(card_id)
-
-        # Button to add a new card below this one
+                transcript = st.session_state.get(f"transcript_{card_id}", "")
+                note = st.text_area("Transcription", transcript, height=150, key=f"note_{card_id}")
+                st.download_button(
+                    "💾 Download Note",
+                    note,
+                    file_name=f"note_card_{idx + 1}.txt",
+                    key=f"dl_{card_id}",
+                )
+        # Divider & add-below button
+        st.markdown("---")
         if st.button("Add Card Below", key=f"add_{card_id}"):
-            idx = st.session_state.cards.index(card_id)
             add_card(idx)
+
+# Render all cards
+for i, cid in enumerate(st.session_state.cards):
+    render_card(i, cid)
