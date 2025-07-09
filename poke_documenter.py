@@ -42,7 +42,7 @@ def add_card(idx: int):
 def render_card(idx: int, card_id: int):
     with st.container():
         with st.expander(f"Details for Card {idx + 1}", expanded=True):
-            c1, c2, c3 = st.columns([1, 1, 1])
+            c1, c2, c3 = st.columns([1, 1, 1], gap="small", border=True)
 
             # Image Uploaders + Camera Capture
             for col, label in zip((c1, c2), ("Front", "Back")):
@@ -70,6 +70,7 @@ def render_card(idx: int, card_id: int):
             # Audio recorder & transcription
             with c3:
                 st.markdown("**Record & Transcribe**")
+
                 audio_data = audiorecorder(
                     start_prompt="",
                     stop_prompt="",
@@ -77,6 +78,7 @@ def render_card(idx: int, card_id: int):
                     show_visualizer=True,
                     key=f"audio_{card_id}",
                 )
+
                 if audio_data:
                     st.audio(audio_data.export().read(), format="audio/wav")
 
@@ -96,12 +98,7 @@ def render_card(idx: int, card_id: int):
 
                 transcript = st.session_state.get(f"transcript_{card_id}", "")
                 note = st.text_area("Transcription", transcript, height=150, key=f"note_{card_id}")
-                st.download_button(
-                    "💾 Download Note",
-                    note,
-                    file_name=f"note_card_{idx + 1}.txt",
-                    key=f"dl_{card_id}",
-                )
+
         # Divider & add-below button
         st.markdown("---")
         if st.button("Add Card Below", key=f"add_{card_id}"):
