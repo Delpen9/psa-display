@@ -5,17 +5,33 @@ import os
 # Load environment variables from .env file
 load_dotenv()
 
-# Get the token from environment variables
-token = os.getenv("PSA_API_TOKEN")
+if __name__ == "__main__":
+    # Get the token from environment variables
+    token = os.getenv("PSA_API_TOKEN")
 
-# Prepare the API request
-url = "https://api.psacard.com/publicapi/cert/GetByCertNumber/00000000"
-headers = {
-    "authorization": f"bearer {token}"
-}
+    specID = "2853456"
+    certNum = "55613523"
 
-# Make the GET request
-response = requests.get(url, headers=headers)
+    # # Prepare the API request
+    # url = f"https://api.psacard.com/publicapi/cert/GetByCertNumber/{certNum}"
+    # headers = {
+    #     "authorization": f"bearer {token}"
+    # }
 
-# Print the JSON response
-print(response.json())
+    # # Make the GET request
+    # response = requests.get(url, headers=headers)
+
+    # # Print the JSON response
+    # print(response.json())
+
+    # Prepare the API request
+    url = f"https://api.psacard.com/publicapi/pop/GetPSASpecPopulation/{specID}"
+    headers = {
+        "authorization": f"bearer {token}"
+    }
+
+    # Make the GET request
+    response = requests.get(url, headers=headers)
+
+    # Print the JSON response
+    print(response.json())
