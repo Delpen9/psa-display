@@ -41,7 +41,14 @@ def add_card(idx: int):
 
 def render_card(idx: int, card_id: int):
     with st.container():
-        with st.expander(f"Details for Card {idx + 1}", expanded=True):
+        # Provide a default name
+        default_name = f"Details for Card"
+
+        # Allow user to edit the name
+        card_name = st.text_input(f"Card Name", value=default_name, key=f"card_name_{idx}")
+
+        # Use the edited name in the expander
+        with st.expander(card_name, expanded=True):
             c1, c2, c3 = st.columns([1, 1, 1], gap="small", border=True)
 
             # Image Uploaders + Camera Capture
@@ -100,10 +107,10 @@ def render_card(idx: int, card_id: int):
                 note = st.text_area("Transcription", transcript, height=150, key=f"note_{card_id}")
 
         # Divider & add-below button
-        st.markdown("---")
         if st.button("Add Card Below", key=f"add_{card_id}"):
             add_card(idx)
 
 # Render all cards
 for i, cid in enumerate(st.session_state.cards):
+    st.markdown("---")
     render_card(i, cid)
