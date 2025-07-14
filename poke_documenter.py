@@ -14,6 +14,23 @@ def add_Item(idx: int):
     next_id = max(st.session_state.Items, default=-1) + 1
     st.session_state.Items.insert(idx + 1, next_id)
 
+@st.dialog("Confirm delete", width="small")   # "large" is ~750 px
+def confirm_delete(idx, cid):
+    st.write(f"Delete item **#{cid}**?")
+    yes, no = st.columns(2)
+    with yes:
+        if st.button("Yes, delete"):
+            # remove card
+            st.session_state.Items.pop(idx)
+            # optional: clean up any related keys
+            for k in list(st.session_state.keys()):
+                if k.endswith(f"_{cid}"):
+                    st.session_state.pop(k)
+            st.rerun()          # closes the dialog + refreshes page
+    with no:
+        if st.button("Cancel"):
+            st.rerun()          # just close the dialog
+    
 # Item renderer
 def render_Item(idx: int, Item_id: int):
     with st.container():
@@ -92,9 +109,13 @@ def render_Item(idx: int, Item_id: int):
                 transcript = st.session_state.get(f"transcript_{Item_id}", "")
                 note = st.text_area("Transcription", transcript, height=150, key=f"note_{Item_id}")
 
-        # Divider & add-below button
-        if st.button("Add Item Below", key=f"add_{Item_id}"):
-            add_Item(idx)
+        c1, c2 = st.columns([1,1], gap="small")
+        with c1:
+            if st.button("➕ Add Item Below", key=f"add_{Item_id}"):
+                add_Item(idx)
+        with c2:
+            if st.button("🗑️ Delete Item", key=f"del_{Item_id}"):
+                confirm_delete(idx, Item_id)   # ← opens modal
 
     return front_image, back_image
 
@@ -191,7 +212,7 @@ if __name__ == "__main__":
         unsafe_allow_html=True,
     )
 
-    # Render items
+    # 2) Render items
     for i, cid in enumerate(st.session_state.Items):
         st.markdown("---")
 
