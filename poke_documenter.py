@@ -23,32 +23,36 @@ def render_Item(idx: int, Item_id: int):
         # Allow user to edit the name
         Item_name = st.text_input(f"", value=default_name, key=f"Item_name_{idx}")
 
-        # Use the edited name in the expander
         with st.expander("Details", expanded=True):
-            c1, c2, c3 = st.columns([1, 1, 1], gap="small", border=True)
+            c1, c2, c3 = st.columns([1,1,1], gap="small")
 
             # Image Uploaders + Camera Capture
             for col, label in zip((c1, c2), ("Front", "Back")):
                 with col:
                     st.markdown(f"**Upload {label} Image**")
-                    # for each Item and each label (“Front”, “Back”)
                     tabs = st.tabs(["Upload", "Camera"])
                     with tabs[0]:
                         upload = st.file_uploader(
-                            "",
-                            type=["png", "jpg", "jpeg"],
-                            key=f"upload_{label.lower()}_{Item_id}",
+                            "", type=["png","jpg","jpeg"],
+                            key=f"upload_{label.lower()}_{Item_id}"
                         )
                     with tabs[1]:
                         camera = st.camera_input(
                             f"Snap {label} Photo",
-                            key=f"camera_{label.lower()}_{Item_id}",
+                            key=f"camera_{label.lower()}_{Item_id}"
                         )
 
-                    # pick whichever the user provided
-                    image = upload if upload is not None else camera
-                    if image is not None:
-                        st.image(image, caption=label, use_column_width=True)
+                    image = upload or camera
+                    if image:
+                        st.image(image, caption=label, use_container_width=True)
+
+                    # capture for return
+                    if label == "Front":
+                        front_image = image
+                        st.session_state[f"front_{Item_id}"] = image
+                    else:
+                        back_image = image
+                        st.session_state[f"back_{Item_id}"] = image
 
             # Audio recorder & transcription
             with c3:
@@ -91,6 +95,8 @@ def render_Item(idx: int, Item_id: int):
         # Divider & add-below button
         if st.button("Add Item Below", key=f"add_{Item_id}"):
             add_Item(idx)
+
+    return front_image, back_image
 
 if __name__ == "__main__":
     # Page config
@@ -185,7 +191,23 @@ if __name__ == "__main__":
         unsafe_allow_html=True,
     )
 
-    # Render all Items
+    # Render items
     for i, cid in enumerate(st.session_state.Items):
         st.markdown("---")
-        render_Item(i, cid)
+
+        front_image = st.session_state.get(f"front_{cid}")
+        back_image  = st.session_state.get(f"back_{cid}")
+
+        if front_image or back_image:
+            c1, c2 = st.columns([4, 1], gap="small")
+            with c1:
+                render_Item(i, cid)
+
+            with c2:
+                if front_image:
+                    st.image(front_image, caption="Front", use_container_width=True)
+
+                if back_image:
+                    st.image(back_image,  caption="Back",  use_container_width=True)
+        else:
+            render_Item(i, cid)
