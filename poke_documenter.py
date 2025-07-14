@@ -32,7 +32,7 @@ def confirm_delete(idx, cid):
             st.rerun()          # just close the dialog
     
 # Item renderer
-def render_Item(idx: int, Item_id: int):
+def render_Item(idx: int, Item_id: int, allow_delete: bool):
     with st.container():
         # Provide a default name
         default_name = f"Default Item Name"
@@ -109,11 +109,10 @@ def render_Item(idx: int, Item_id: int):
                 transcript = st.session_state.get(f"transcript_{Item_id}", "")
                 note = st.text_area("Transcription", transcript, height=150, key=f"note_{Item_id}")
 
-        c1, c2 = st.columns([1,1], gap="small")
-        with c1:
-            if st.button("➕ Add Item Below", key=f"add_{Item_id}"):
-                add_Item(idx)
-        with c2:
+        if st.button("➕ Add Item Below", key=f"add_{Item_id}"):
+            add_Item(idx)
+
+        if allow_delete:
             if st.button("🗑️ Delete Item", key=f"del_{Item_id}"):
                 confirm_delete(idx, Item_id)   # ← opens modal
 
@@ -212,7 +211,8 @@ if __name__ == "__main__":
         unsafe_allow_html=True,
     )
 
-    # 2) Render items
+    allow_delete = len(st.session_state.Items) > 1
+    # Render items
     for i, cid in enumerate(st.session_state.Items):
         st.markdown("---")
 
@@ -222,7 +222,7 @@ if __name__ == "__main__":
         if front_image or back_image:
             c1, c2 = st.columns([4, 1], gap="small")
             with c1:
-                render_Item(i, cid)
+                render_Item(i, cid, allow_delete=allow_delete)
 
             with c2:
                 if front_image:
@@ -231,4 +231,4 @@ if __name__ == "__main__":
                 if back_image:
                     st.image(back_image,  caption="Back",  use_container_width=True)
         else:
-            render_Item(i, cid)
+            render_Item(i, cid, allow_delete=allow_delete)
