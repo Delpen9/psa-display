@@ -9,6 +9,93 @@ def load_model():
     import whisper
     return whisper.load_model("base")
 
+def setup_page():
+    # Page config
+    st.set_page_config(
+        page_title="Collectible Documenter", 
+        layout="wide", 
+        initial_sidebar_state="expanded"
+    )
+
+    # Base CSS (hide menu/footer, base Item styling)
+    st.markdown(
+        """
+        <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            .stApp {padding: 2rem;}
+
+            .banner-container {
+                padding: 1rem 2rem;
+                border-radius: 0.5rem;
+                margin-bottom: 1.5rem;
+                text-align: center;
+                font-family: 'Segoe UI', sans-serif;
+                border: 1px solid;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+            }
+
+            .Item-container {
+                background: #f9f9f9;
+                border-radius: 1rem;
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Banner (media-query fallback for Auto mode)
+    st.markdown(
+        """
+        <style>
+        @media (prefers-color-scheme: light) {
+            .banner-container {
+                background-color: #f5f5f5;
+                color: #333;
+                border-color: #e0e0e0;
+            }
+        }
+        @media (prefers-color-scheme: dark) {
+            .banner-container {
+                background-color: #1e1e1e;
+                color: #f5f5f5;
+                border-color: #444;
+                box-shadow: 0 2px 8px rgba(255, 255, 255, 0.05);
+            }
+        }
+        </style>
+
+        <div class="banner-container">
+            <h1 style="margin: 0; font-size: 2.2rem;">Collectible Documenter</h1>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <style>
+        .banner-container {
+            background-color: #f5f5f5 !important;
+            color: #333 !important;
+            border-color: #e0e0e0 !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+        }
+        .Item-container {
+            background: #f9f9f9 !important;
+            color: #000 !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # Helper to insert a Item id after current index
 def add_Item(idx: int):
     next_id = max(st.session_state.Items, default=-1) + 1
@@ -32,7 +119,7 @@ def confirm_delete(idx, cid):
             st.rerun()          # just close the dialog
     
 # Item renderer
-def render_Item(idx: int, Item_id: int, allow_delete: bool):
+def render_Item(idx: int, Item_id: int, allow_delete: bool, model: any = None):
     with st.container():
         # Provide a default name
         default_name = f"Default Item Name"
@@ -119,97 +206,13 @@ def render_Item(idx: int, Item_id: int, allow_delete: bool):
     return front_image, back_image
 
 if __name__ == "__main__":
-    # Page config
-    st.set_page_config(
-        page_title="Collectible Documenter", 
-        layout="wide", 
-        initial_sidebar_state="expanded"
-    )
-
-    model = load_model()
-
+    setup_page()
+    
     # Initialise Items state
     if "Items" not in st.session_state:
         st.session_state.Items = [0]
 
-    # Base CSS (hide menu/footer, base Item styling)
-    st.markdown(
-        """
-        <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            .stApp {padding: 2rem;}
-
-            .banner-container {
-                padding: 1rem 2rem;
-                border-radius: 0.5rem;
-                margin-bottom: 1.5rem;
-                text-align: center;
-                font-family: 'Segoe UI', sans-serif;
-                border: 1px solid;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                transition: background-color 0.3s, color 0.3s, border-color 0.3s;
-            }
-
-            .Item-container {
-                background: #f9f9f9;
-                border-radius: 1rem;
-                padding: 1.5rem;
-                margin-bottom: 1.5rem;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                transition: background 0.3s, color 0.3s, box-shadow 0.3s;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Banner (media-query fallback for Auto mode)
-    st.markdown(
-        """
-        <style>
-        @media (prefers-color-scheme: light) {
-            .banner-container {
-                background-color: #f5f5f5;
-                color: #333;
-                border-color: #e0e0e0;
-            }
-        }
-        @media (prefers-color-scheme: dark) {
-            .banner-container {
-                background-color: #1e1e1e;
-                color: #f5f5f5;
-                border-color: #444;
-                box-shadow: 0 2px 8px rgba(255, 255, 255, 0.05);
-            }
-        }
-        </style>
-
-        <div class="banner-container">
-            <h1 style="margin: 0; font-size: 2.2rem;">Collectible Documenter</h1>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <style>
-        .banner-container {
-            background-color: #f5f5f5 !important;
-            color: #333 !important;
-            border-color: #e0e0e0 !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
-        }
-        .Item-container {
-            background: #f9f9f9 !important;
-            color: #000 !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    model = load_model()
 
     allow_delete = len(st.session_state.Items) > 1
     # Render items
@@ -226,9 +229,9 @@ if __name__ == "__main__":
 
             with c2:
                 if front_image:
-                    st.image(front_image, caption="Front", use_container_width=True)
+                    st.image(front_image, caption="Front", use_container_width=True, model=model)
 
                 if back_image:
-                    st.image(back_image,  caption="Back",  use_container_width=True)
+                    st.image(back_image,  caption="Back",  use_container_width=True, model=model)
         else:
             render_Item(i, cid, allow_delete=allow_delete)
