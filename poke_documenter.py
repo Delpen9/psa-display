@@ -96,6 +96,36 @@ def setup_page():
         unsafe_allow_html=True,
     )
 
+
+def tag_filter_widget(label, list_key, input_key, select_key):
+    if list_key not in st.session_state:
+        st.session_state[list_key] = []
+    if input_key not in st.session_state:
+        st.session_state[input_key] = ""
+
+    def add_tag():
+        new = st.session_state[input_key].strip()
+
+        if new and new not in st.session_state[list_key]:
+            st.session_state[list_key].append(new)
+
+        st.session_state[input_key] = ""
+
+    def remove_tag(tag):
+        st.session_state[list_key].remove(tag)
+
+    st.text_input(label, key=input_key, on_change=add_tag)
+    for t in st.session_state[list_key]:
+        if st.button(f"❌ {t}", key=f"{list_key}_del_{t}", on_click=remove_tag, args=(t,)):
+            pass
+
+    return st.session_state[list_key], st.multiselect(
+        "Filter by tags",
+        options=st.session_state[list_key],
+        default=st.session_state[list_key],
+        key=select_key
+    )
+
 # Helper to insert a Item id after current index
 def add_Item(idx: int):
     next_id = max(st.session_state.Items, default=-1) + 1
@@ -119,7 +149,28 @@ def confirm_delete(idx, cid):
             st.rerun()          # just close the dialog
     
 # Item renderer
-def render_Item(idx: int, Item_id: int, allow_delete: bool, model: any = None):
+def render_Item(
+    idx: int,
+    Item_id: int,
+    allow_delete: bool,
+    model: any = None,
+    tag_options: list[str] = [], 
+    selected_filters: list[str] = []
+):
+    tag_selection_key = f"tag_selection_{Item_id}"
+
+    # initialize tag selection
+    if tag_selection_key not in st.session_state:
+        st.session_state[tag_selection_key] = []
+
+    if selected_filters:
+        session_tags = st.session_state[tag_selection_key]
+        has_overlap = bool(set(selected_filters) & set(session_tags))
+
+        # We want to skip this card if it doesn't overlap with the filters
+        if not has_overlap:
+            return
+
     with st.container():
         # Provide a default name
         default_name = f"Default Item Name"
@@ -196,8 +247,23 @@ def render_Item(idx: int, Item_id: int, allow_delete: bool, model: any = None):
                 transcript = st.session_state.get(f"transcript_{Item_id}", "")
                 note = st.text_area("Transcription", transcript, height=150, key=f"note_{Item_id}")
 
-        if st.button("➕ Add Item Below", key=f"add_{Item_id}"):
-            add_Item(idx)
+            st.write("---")
+
+            selected_tags = st.multiselect(
+                "Add Tags",
+                options=tag_options,
+                default=[],
+                key=tag_selection_key
+            )
+
+            for tag in st.session_state[tag_selection_key]:
+                if st.button(tag, key=f"{tag_selection_key}_del_{tag}"):
+                    pass
+        
+        # Can only add items when filters are not present
+        if not selected_filters:
+            if st.button("➕ Add Item Below", key=f"add_{Item_id}"):
+                add_Item(idx)
 
         if allow_delete:
             if st.button("🗑️ Delete Item", key=f"del_{Item_id}"):
@@ -207,7 +273,19 @@ def render_Item(idx: int, Item_id: int, allow_delete: bool, model: any = None):
 
 if __name__ == "__main__":
     setup_page()
-    
+
+    if "tags" not in st.session_state:
+        st.session_state.tags = []
+
+    all_options, selected_tags = tag_filter_widget(
+        "Add tag", 
+        list_key="main_tags_list", 
+        input_key="main_tags_input", 
+        select_key="main_tags_select"
+    )
+
+    all_options = list(all_options)
+
     # Initialise Items state
     if "Items" not in st.session_state:
         st.session_state.Items = [0]
@@ -225,13 +303,23 @@ if __name__ == "__main__":
         if front_image or back_image:
             c1, c2 = st.columns([4, 1], gap="small")
             with c1:
-                render_Item(i, cid, allow_delete=allow_delete)
+                render_Item(
+                    i, cid,
+                    allow_delete=allow_delete,
+                    model=model,
+                    tag_options=all_options, selected_filters=selected_tags
+                )
 
             with c2:
                 if front_image:
-                    st.image(front_image, caption="Front", use_container_width=True, model=model)
+                    st.image(front_image, caption="Front", use_container_width=True)
 
                 if back_image:
-                    st.image(back_image,  caption="Back",  use_container_width=True, model=model)
+                    st.image(back_image,  caption="Back",  use_container_width=True)
         else:
-            render_Item(i, cid, allow_delete=allow_delete)
+            render_Item(
+                i, cid,
+                allow_delete=allow_delete,
+                model=model,
+                tag_options=all_options, selected_filters=selected_tags
+            )
