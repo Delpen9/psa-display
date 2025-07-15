@@ -163,22 +163,20 @@ def render_Item(
     if tag_selection_key not in st.session_state:
         st.session_state[tag_selection_key] = []
 
+    has_overlap = False
     if selected_filters:
         session_tags = st.session_state[tag_selection_key]
         has_overlap = bool(set(selected_filters) & set(session_tags))
 
-        # We want to skip this card if it doesn't overlap with the filters
-        if not has_overlap:
-            return
-
+    overlap_condition = (has_overlap or not selected_filters)
     with st.container():
         # Provide a default name
         default_name = f"Default Item Name"
 
         # Allow user to edit the name
-        Item_name = st.text_input(f"", value=default_name, key=f"Item_name_{idx}")
+        Item_name = st.text_input(f"", value=default_name, key=f"Item_name_{idx}", disabled=not overlap_condition)
 
-        with st.expander("Details", expanded=True):
+        with st.expander("Details", expanded=overlap_condition):
             c1, c2, c3 = st.columns([1,1,1], gap="small")
 
             # Image Uploaders + Camera Capture
@@ -189,12 +187,14 @@ def render_Item(
                     with tabs[0]:
                         upload = st.file_uploader(
                             "", type=["png","jpg","jpeg"],
-                            key=f"upload_{label.lower()}_{Item_id}"
+                            key=f"upload_{label.lower()}_{Item_id}",
+                            disabled=not overlap_condition
                         )
                     with tabs[1]:
                         camera = st.camera_input(
                             f"Snap {label} Photo",
-                            key=f"camera_{label.lower()}_{Item_id}"
+                            key=f"camera_{label.lower()}_{Item_id}",
+                            disabled=not overlap_condition
                         )
 
                     image = upload or camera
@@ -213,18 +213,19 @@ def render_Item(
             with c3:
                 st.markdown("**Record & Transcribe**")
 
-                audio_data = audiorecorder(
-                    start_prompt="",
-                    stop_prompt="",
-                    pause_prompt="",
-                    show_visualizer=True,
-                    key=f"audio_{Item_id}",
-                )
+                if overlap_condition:
+                    audio_data = audiorecorder(
+                        start_prompt="",
+                        stop_prompt="",
+                        pause_prompt="",
+                        show_visualizer=True,
+                        key=f"audio_{Item_id}",
+                    )
 
-                if audio_data:
-                    st.audio(audio_data.export().read(), format="audio/wav")
+                    if audio_data:
+                        st.audio(audio_data.export().read(), format="audio/wav", disabled=not overlap_condition)
 
-                if st.button("📝 Transcribe", key=f"trans_{Item_id}"):
+                if st.button("📝 Transcribe", key=f"trans_{Item_id}", disabled=not overlap_condition):
                     if audio_data and len(audio_data) > 0:
                         buf = io.BytesIO(audio_data.export().read())
 
@@ -245,7 +246,7 @@ def render_Item(
                         st.warning("No audio recorded!")
 
                 transcript = st.session_state.get(f"transcript_{Item_id}", "")
-                note = st.text_area("Transcription", transcript, height=150, key=f"note_{Item_id}")
+                note = st.text_area("Transcription", transcript, height=150, key=f"note_{Item_id}", disabled=not overlap_condition)
 
             st.write("---")
 
@@ -253,10 +254,11 @@ def render_Item(
                 "Add Tags",
                 options=tag_options,
                 default=[],
-                key=tag_selection_key
+                key=tag_selection_key,
+                disabled=not overlap_condition
             )
 
-            for tag in st.session_state[tag_selection_key]:
+            for tag in selected_tags:
                 if st.button(tag, key=f"{tag_selection_key}_del_{tag}"):
                     pass
         
@@ -293,6 +295,7 @@ if __name__ == "__main__":
     model = load_model()
 
     allow_delete = len(st.session_state.Items) > 1
+
     # Render items
     for i, cid in enumerate(st.session_state.Items):
         st.markdown("---")
